@@ -1,0 +1,33 @@
+[Unit]
+Description=UvooHugo local editor
+Documentation=file:/usr/share/doc/uvoohugo-editor/PACKAGE.md
+After=network.target
+
+[Service]
+EnvironmentFile=%h/.config/uvoohugo-editor/editor.env
+ExecStart=/usr/bin/uvoohugo-editor
+Restart=on-failure
+RestartSec=3
+
+MemoryMax=512M
+CPUQuota=100%
+TasksMax=128
+
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/hugo_website_demo %h/hugo-server.log
+PrivateTmp=true
+PrivateDevices=true
+NoNewPrivileges=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictRealtime=true
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=default.target

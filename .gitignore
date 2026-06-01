@@ -3,5 +3,10 @@ trash/
 tmp/
 node_modules/
 editor/web/dist/
+!editor/web/dist/
+editor/web/dist/*
+!editor/web/dist/.keep
 editor/web/tsconfig.tsbuildinfo
 hugo-server.log
+dist/
+bin/
