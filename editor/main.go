@@ -70,6 +70,15 @@ type createRequest struct {
 	Title string `json:"title"`
 }
 
+type siteConfig struct {
+	Path string `json:"path"`
+	Body string `json:"body"`
+}
+
+type saveSiteConfigRequest struct {
+	Body string `json:"body"`
+}
+
 func main() {
 	addr := flag.String("addr", envDefault("UVOOHUGO_EDITOR_ADDR", "127.0.0.1:1314"), "editor server address")
 	site := flag.String("site", envDefault("UVOOHUGO_EDITOR_SITE", "hugo_website_demo"), "Hugo site directory")
@@ -124,6 +133,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/config", s.withCORS(s.handleConfig))
+	mux.HandleFunc("/api/site-config", s.withCORS(s.handleSiteConfig))
 	mux.HandleFunc("/api/pages", s.withCORS(s.handlePages))
 	mux.HandleFunc("/api/page", s.withCORS(s.handlePage))
 	mux.HandleFunc("/api/preview/start", s.withCORS(s.handlePreviewStart))
@@ -228,6 +238,54 @@ func (s *server) handlePage(w http.ResponseWriter, r *http.Request) {
 	default:
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 	}
+}
+
+func (s *server) handleSiteConfig(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		s.readSiteConfig(w, r)
+	case http.MethodPut:
+		s.saveSiteConfig(w, r)
+	default:
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+	}
+}
+
+func (s *server) readSiteConfig(w http.ResponseWriter, r *http.Request) {
+	path := s.siteConfigPath()
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		writeError(w, http.StatusNotFound, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, siteConfig{
+		Path: filepath.Base(path),
+		Body: string(raw),
+	})
+}
+
+func (s *server) saveSiteConfig(w http.ResponseWriter, r *http.Request) {
+	var req saveSiteConfigRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	path := s.siteConfigPath()
+	if err := writeFileAtomic(path, []byte(req.Body)); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	buildOutput, buildErr := s.validateHugo()
+	resp := map[string]any{
+		"path":   filepath.Base(path),
+		"output": buildOutput,
+		"ok":     buildErr == nil,
+	}
+	if buildErr != nil {
+		resp["error"] = buildErr.Error()
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func (s *server) readPage(w http.ResponseWriter, r *http.Request) {
@@ -436,6 +494,10 @@ func (s *server) listPages() ([]pageSummary, error) {
 		return pages[i].Path < pages[j].Path
 	})
 	return pages, err
+}
+
+func (s *server) siteConfigPath() string {
+	return filepath.Join(s.siteDir, "hugo.toml")
 }
 
 func (s *server) safeContentPath(path string) (string, string, error) {

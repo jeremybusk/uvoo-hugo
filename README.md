@@ -48,6 +48,10 @@ available at:
 http://127.0.0.1:1314/preview/
 ```
 
+The editor opens on the `Content` tab by default. Use the `Config` tab to edit
+`hugo.toml`, including site params, menu items, markup settings, and other Hugo
+configuration.
+
 ## Development Run
 
 For frontend development, run the Go API and Vite separately:
