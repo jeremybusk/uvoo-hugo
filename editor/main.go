@@ -2,14 +2,19 @@ package main
 
 import (
 	"bytes"
+	"crypto/subtle"
+	"embed"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"net"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,14 +24,20 @@ import (
 	"time"
 )
 
+//go:embed web/dist
+var embeddedWeb embed.FS
+
 type server struct {
 	siteDir    string
 	contentDir string
 	webDir     string
 	editorAddr string
 	previewURL string
+	publicURL  string
 	hugoAddr   string
 	logPath    string
+	authUser   string
+	authPass   string
 
 	mu      sync.Mutex
 	hugoCmd *exec.Cmd
@@ -60,12 +71,27 @@ type createRequest struct {
 }
 
 func main() {
-	addr := flag.String("addr", "127.0.0.1:1314", "editor server address")
-	site := flag.String("site", "hugo_website_demo", "Hugo site directory")
-	web := flag.String("web", "editor/web/dist", "built React app directory")
-	hugoAddr := flag.String("hugo-addr", "127.0.0.1:1313", "Hugo preview server address")
-	startHugo := flag.Bool("start-hugo", true, "start Hugo preview server on launch")
+	addr := flag.String("addr", envDefault("UVOOHUGO_EDITOR_ADDR", "127.0.0.1:1314"), "editor server address")
+	site := flag.String("site", envDefault("UVOOHUGO_EDITOR_SITE", "hugo_website_demo"), "Hugo site directory")
+	web := flag.String("web", envDefault("UVOOHUGO_EDITOR_WEB_DIR", "editor/web/dist"), "built React app directory")
+	hugoAddr := flag.String("hugo-addr", envDefault("UVOOHUGO_EDITOR_HUGO_ADDR", "127.0.0.1:1313"), "local Hugo preview server address")
+	publicURL := flag.String("public-url", os.Getenv("UVOOHUGO_EDITOR_PUBLIC_URL"), "public editor base URL used for Hugo preview links")
+	authUser := flag.String("auth-user", os.Getenv("UVOOHUGO_EDITOR_AUTH_USER"), "HTTP Basic Auth username")
+	authPassword := flag.String("auth-password", os.Getenv("UVOOHUGO_EDITOR_AUTH_PASSWORD"), "HTTP Basic Auth password")
+	authPasswordFile := flag.String("auth-password-file", os.Getenv("UVOOHUGO_EDITOR_AUTH_PASSWORD_FILE"), "file containing HTTP Basic Auth password")
+	startHugo := flag.Bool("start-hugo", envBool("UVOOHUGO_EDITOR_START_HUGO", true), "start Hugo preview server on launch")
 	flag.Parse()
+
+	if *authPassword == "" && *authPasswordFile != "" {
+		password, err := os.ReadFile(*authPasswordFile)
+		if err != nil {
+			log.Fatalf("read auth password file: %v", err)
+		}
+		*authPassword = strings.TrimSpace(string(password))
+	}
+	if *authUser == "" || *authPassword == "" {
+		log.Fatal("basic auth is required: set UVOOHUGO_EDITOR_AUTH_USER and UVOOHUGO_EDITOR_AUTH_PASSWORD, or pass -auth-user and -auth-password")
+	}
 
 	siteDir, err := filepath.Abs(*site)
 	if err != nil {
@@ -82,9 +108,12 @@ func main() {
 		contentDir: contentDir,
 		webDir:     webDir,
 		editorAddr: *addr,
-		previewURL: "http://" + *hugoAddr + "/",
+		previewURL: "/preview/",
+		publicURL:  strings.TrimRight(*publicURL, "/"),
 		hugoAddr:   *hugoAddr,
 		logPath:    filepath.Join(filepath.Dir(siteDir), "hugo-server.log"),
+		authUser:   *authUser,
+		authPass:   *authPassword,
 	}
 
 	if *startHugo {
@@ -99,14 +128,49 @@ func main() {
 	mux.HandleFunc("/api/page", s.withCORS(s.handlePage))
 	mux.HandleFunc("/api/preview/start", s.withCORS(s.handlePreviewStart))
 	mux.HandleFunc("/api/preview/stop", s.withCORS(s.handlePreviewStop))
+	mux.HandleFunc("/preview/", s.handlePreviewProxy)
 	mux.HandleFunc("/", s.handleStatic)
 
 	log.Printf("editor listening on http://%s", *addr)
 	log.Printf("hugo site: %s", siteDir)
-	log.Printf("hugo preview: %s", s.previewURL)
-	if err := http.ListenAndServe(*addr, mux); err != nil {
+	log.Printf("hugo preview: http://%s/ proxied at /preview/", s.hugoAddr)
+	if err := http.ListenAndServe(*addr, s.withAuth(mux)); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func envDefault(name, fallback string) string {
+	value := strings.TrimSpace(os.Getenv(name))
+	if value == "" {
+		return fallback
+	}
+	return value
+}
+
+func envBool(name string, fallback bool) bool {
+	value := strings.ToLower(strings.TrimSpace(os.Getenv(name)))
+	switch value {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return fallback
+	}
+}
+
+func (s *server) withAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user, pass, ok := r.BasicAuth()
+		userOK := subtle.ConstantTimeCompare([]byte(user), []byte(s.authUser)) == 1
+		passOK := subtle.ConstantTimeCompare([]byte(pass), []byte(s.authPass)) == 1
+		if !ok || !userOK || !passOK {
+			w.Header().Set("WWW-Authenticate", `Basic realm="Hugo Editor", charset="UTF-8"`)
+			writeError(w, http.StatusUnauthorized, "authentication required")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (s *server) withCORS(next http.HandlerFunc) http.HandlerFunc {
@@ -133,6 +197,8 @@ func (s *server) handleConfig(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"siteDir":     s.siteDir,
 		"previewURL":  s.previewURL,
+		"publicURL":   s.publicURL,
+		"hugoURL":     "http://" + s.hugoAddr + "/",
 		"hugoLog":     s.logPath,
 		"hugoRunning": running,
 	})
@@ -295,16 +361,45 @@ func (s *server) handlePreviewStop(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) handleStatic(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path == "/" {
-		index := filepath.Join(s.webDir, "index.html")
-		if _, err := os.Stat(index); err == nil {
-			http.ServeFile(w, r, index)
-			return
-		}
-		writeError(w, http.StatusNotFound, "React app is not built yet. Run npm install && npm run build in editor/web, or use npm run dev.")
+	if info, err := os.Stat(filepath.Join(s.webDir, "index.html")); err == nil && !info.IsDir() {
+		http.FileServer(http.Dir(s.webDir)).ServeHTTP(w, r)
 		return
 	}
-	http.FileServer(http.Dir(s.webDir)).ServeHTTP(w, r)
+
+	dist, err := fs.Sub(embeddedWeb, "web/dist")
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	fileServer := http.FileServer(http.FS(dist))
+	if r.URL.Path == "/" {
+		index, err := dist.Open("index.html")
+		if err != nil {
+			writeError(w, http.StatusNotFound, "React app is not built yet. Run npm install && npm run build in editor/web.")
+			return
+		}
+		_ = index.Close()
+	}
+	fileServer.ServeHTTP(w, r)
+}
+
+func (s *server) handlePreviewProxy(w http.ResponseWriter, r *http.Request) {
+	if err := s.startHugo(); err != nil {
+		writeError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	target, err := url.Parse("http://" + s.hugoAddr + "/")
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	proxy := httputil.NewSingleHostReverseProxy(target)
+	originalDirector := proxy.Director
+	proxy.Director = func(req *http.Request) {
+		originalDirector(req)
+		req.Host = target.Host
+	}
+	proxy.ServeHTTP(w, r)
 }
 
 func (s *server) listPages() ([]pageSummary, error) {
@@ -393,14 +488,15 @@ func (s *server) startHugo() error {
 	}
 	port = firstAvailablePort(host, port, s.editorAddr)
 	s.hugoAddr = host + ":" + port
-	s.previewURL = "http://" + s.hugoAddr + "/"
+	s.previewURL = "/preview/"
 	cmd := exec.Command(
 		"hugo", "server",
 		"--source", s.siteDir,
 		"--disableFastRender",
 		"--bind", host,
 		"--port", port,
-		"--baseURL", s.previewURL,
+		"--baseURL", s.publicPreviewBaseURL(),
+		"--appendPort=false",
 	)
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
@@ -419,6 +515,20 @@ func (s *server) startHugo() error {
 		s.mu.Unlock()
 	}()
 	return nil
+}
+
+func (s *server) publicPreviewBaseURL() string {
+	if s.publicURL != "" {
+		return strings.TrimRight(s.publicURL, "/") + "/preview/"
+	}
+	host, port, err := net.SplitHostPort(s.editorAddr)
+	if err != nil {
+		return "http://127.0.0.1:1314/preview/"
+	}
+	if host == "" || host == "0.0.0.0" || host == "::" || host == "[::]" {
+		host = "127.0.0.1"
+	}
+	return "http://" + net.JoinHostPort(host, port) + "/preview/"
 }
 
 func firstAvailablePort(host, preferred, skipAddr string) string {
@@ -444,6 +554,11 @@ func firstAvailablePort(host, preferred, skipAddr string) string {
 func sameTCPAddr(a, b string) bool {
 	if b == "" {
 		return false
+	}
+	_, aPort, aErr := net.SplitHostPort(a)
+	_, bPort, bErr := net.SplitHostPort(b)
+	if aErr == nil && bErr == nil && aPort == bPort {
+		return true
 	}
 	normalize := func(value string) string {
 		if strings.HasPrefix(value, ":") {

@@ -1,0 +1,53 @@
+version: 2
+
+project_name: uvoohugo-editor
+
+before:
+  hooks:
+    - npm --prefix editor/web ci
+    - npm --prefix editor/web run build
+
+builds:
+  - id: uvoohugo-editor
+    main: ./editor
+    binary: uvoohugo-editor
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - id: default
+    formats:
+      - tar.gz
+    files:
+      - README.md
+      - editor/README.md
+      - docs/PACKAGE.md
+      - packaging/editor.env.example
+
+nfpms:
+  - id: linux-packages
+    package_name: uvoohugo-editor
+    vendor: uvoohugo
+    homepage: https://github.com/uvoo/uvoohugo
+    maintainer: uvoohugo maintainers
+    description: Local authenticated editor for Hugo content files.
+    license: MIT
+    formats:
+      - deb
+      - rpm
+    bindir: /usr/bin
+    contents:
+      - src: packaging/systemd/user/uvoohugo-editor.service
+        dst: /usr/lib/systemd/user/uvoohugo-editor.service
+      - src: packaging/editor.env.example
+        dst: /usr/share/doc/uvoohugo-editor/editor.env.example
+      - src: docs/PACKAGE.md
+        dst: /usr/share/doc/uvoohugo-editor/PACKAGE.md
+
+checksum:
+  name_template: checksums.txt
