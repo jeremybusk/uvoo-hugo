@@ -89,9 +89,6 @@ const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ path, title })
     })
-  },
-  async startPreview(): Promise<{ previewURL: string }> {
-    return request('/api/preview/start', { method: 'POST' })
   }
 }
 
@@ -117,6 +114,7 @@ function App() {
   const [status, setStatus] = useState('Loading editor...')
   const [saving, setSaving] = useState(false)
   const [previewTick, setPreviewTick] = useState(0)
+  const [showPreview, setShowPreview] = useState(true)
   const [showFrontMatter, setShowFrontMatter] = useState(true)
   const [query, setQuery] = useState('')
 
@@ -203,6 +201,7 @@ function App() {
 
   const previewURL = page && config ? `${config.previewURL.replace(/\/$/, '')}${page.url}?editor=${previewTick}` : ''
   const sitePreviewURL = config ? `${config.previewURL}?editor=${previewTick}` : ''
+  const activePreviewURL = activeTab === 'config' ? sitePreviewURL : previewURL
 
   async function refreshPages(pathToSelect = selectedPath) {
     const nextPages = await api.listPages()
@@ -271,17 +270,9 @@ function App() {
     }
   }
 
-  async function startPreview() {
-    setStatus('Starting Hugo preview...')
-    try {
-      const next = await api.startPreview()
-      const nextConfig = await api.getConfig()
-      setConfig(nextConfig)
-      setPreviewTick((tick) => tick + 1)
-      setStatus(`Preview is running at ${next.previewURL}`)
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Preview failed to start.')
-    }
+  function openLiveSite() {
+    const url = activePreviewURL || config?.previewURL || '/preview/'
+    window.open(url, '_blank', 'noopener,noreferrer')
   }
 
   return (
@@ -359,7 +350,10 @@ function App() {
                 {showFrontMatter ? 'Hide Fields' : 'Show Fields'}
               </button>
             )}
-            <button type="button" onClick={startPreview}>Preview</button>
+            <button type="button" onClick={() => setShowPreview((value) => !value)}>
+              {showPreview ? 'Hide Preview' : 'Show Preview'}
+            </button>
+            <button type="button" onClick={openLiveSite}>Live Site</button>
             <button
               type="button"
               className="primary"
@@ -371,10 +365,10 @@ function App() {
           </div>
         </header>
 
-        {activeTab === 'content' ? (
-          <div className="editor-grid">
-            <section className="editor-pane">
-              {page ? (
+        <div className={showPreview ? 'editor-grid' : 'editor-grid preview-hidden'}>
+          <section className="editor-pane">
+            {activeTab === 'content' ? (
+              page ? (
                 <>
                   {showFrontMatter && (
                     <label className="frontmatter-editor">
@@ -398,59 +392,39 @@ function App() {
                 </>
               ) : (
                 <div className="empty-state">Choose a Markdown file to start editing.</div>
-              )}
-            </section>
+              )
+            ) : siteConfig ? (
+              <label className="config-editor">
+                <span>hugo.toml</span>
+                <textarea
+                  spellCheck={false}
+                  value={siteConfigBody}
+                  onChange={(event) => setSiteConfigBody(event.target.value)}
+                />
+              </label>
+            ) : (
+              <div className="empty-state">Loading hugo.toml...</div>
+            )}
+          </section>
 
+          {showPreview && (
             <section className="preview-pane">
               <div className="preview-header">
                 <span>Hugo preview</span>
-                {page && config && (
-                  <a href={previewURL} target="_blank" rel="noreferrer">
+                {activePreviewURL && (
+                  <a href={activePreviewURL} target="_blank" rel="noreferrer">
                     Open
                   </a>
                 )}
               </div>
-              {previewURL ? (
-                <iframe title="Hugo preview" src={previewURL} />
+              {activePreviewURL ? (
+                <iframe title="Hugo preview" src={activePreviewURL} />
               ) : (
                 <div className="empty-state">Preview appears after selecting a page.</div>
               )}
             </section>
-          </div>
-        ) : (
-          <div className="editor-grid">
-            <section className="editor-pane">
-              {siteConfig ? (
-                <label className="config-editor">
-                  <span>hugo.toml</span>
-                  <textarea
-                    spellCheck={false}
-                    value={siteConfigBody}
-                    onChange={(event) => setSiteConfigBody(event.target.value)}
-                  />
-                </label>
-              ) : (
-                <div className="empty-state">Loading hugo.toml...</div>
-              )}
-            </section>
-
-            <section className="preview-pane">
-              <div className="preview-header">
-                <span>Hugo preview</span>
-                {config && (
-                  <a href={sitePreviewURL} target="_blank" rel="noreferrer">
-                    Open
-                  </a>
-                )}
-              </div>
-              {sitePreviewURL ? (
-                <iframe title="Hugo preview" src={sitePreviewURL} />
-              ) : (
-                <div className="empty-state">Preview appears after config loads.</div>
-              )}
-            </section>
-          </div>
-        )}
+          )}
+        </div>
 
         <footer className="statusbar">
           <span>{status}</span>

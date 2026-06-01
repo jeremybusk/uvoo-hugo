@@ -33,6 +33,8 @@ credentials. The Hugo preview is served through the authenticated editor at
 
 The editor opens on `Content` by default. Switch to `Config` to edit
 `hugo.toml`; saving config changes runs Hugo validation just like content saves.
+Use `Hide Preview` for more editing space, or `Live Site` to open the current
+preview in a separate browser tab.
 
 ## Development Run
 

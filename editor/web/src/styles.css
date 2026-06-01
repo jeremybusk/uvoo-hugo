@@ -239,6 +239,10 @@ button:disabled {
   grid-template-columns: minmax(360px, 1fr) minmax(360px, 0.9fr);
 }
 
+.editor-grid.preview-hidden {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .editor-pane,
 .preview-pane {
   min-width: 0;

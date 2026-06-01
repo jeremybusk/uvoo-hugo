@@ -50,7 +50,8 @@ http://127.0.0.1:1314/preview/
 
 The editor opens on the `Content` tab by default. Use the `Config` tab to edit
 `hugo.toml`, including site params, menu items, markup settings, and other Hugo
-configuration.
+configuration. Use `Hide Preview` for a full-width editing area, or `Live Site`
+to open the current preview in another tab.
 
 ## Development Run
 
