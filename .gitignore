@@ -1,0 +1,7 @@
+hugo_website_demo/
+trash/
+tmp/
+node_modules/
+editor/web/dist/
+editor/web/tsconfig.tsbuildinfo
+hugo-server.log
