@@ -555,6 +555,7 @@ func (s *server) startHugo() error {
 		"hugo", "server",
 		"--source", s.siteDir,
 		"--disableFastRender",
+		"--disableLiveReload",
 		"--bind", host,
 		"--port", port,
 		"--baseURL", s.publicPreviewBaseURL(),
