@@ -31,6 +31,9 @@ Open `http://127.0.0.1:1314` and sign in with the configured Basic Auth
 credentials. The Hugo preview is served through the authenticated editor at
 `http://127.0.0.1:1314/preview/`.
 
+The editor opens on `Content` by default. Switch to `Config` to edit
+`hugo.toml`; saving config changes runs Hugo validation just like content saves.
+
 ## Development Run
 
 Set editor credentials:
@@ -97,6 +100,7 @@ access, but credentials are only confidential over TLS.
 ## Notes
 
 - Only Markdown files under the Hugo `content/` directory are editable.
+- The `Config` tab edits `hugo.toml`.
 - Front matter is edited separately from the Markdown body to avoid corrupting
   Hugo-specific fields.
 - Saving writes the file, runs `hugo --source <site> --quiet`, and reports any

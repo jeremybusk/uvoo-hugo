@@ -138,6 +138,31 @@ button:disabled {
   color: #63706a;
 }
 
+.config-sidebar {
+  padding: 16px;
+}
+
+.config-sidebar span {
+  display: block;
+  color: #48554f;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.config-sidebar strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 16px;
+}
+
+.config-sidebar p {
+  margin: 10px 0 0;
+  color: #63706a;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .workspace {
   display: grid;
   min-width: 0;
@@ -153,6 +178,37 @@ button:disabled {
   padding: 12px 16px;
   border-bottom: 1px solid #d9ded9;
   background: #ffffff;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.tabs {
+  display: flex;
+  flex: 0 0 auto;
+  border: 1px solid #bfc8c1;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.tabs button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 0;
+  background: #ffffff;
+}
+
+.tabs button + button {
+  border-left: 1px solid #bfc8c1;
+}
+
+.tabs button.active {
+  background: #235a4b;
+  color: #ffffff;
 }
 
 .topbar strong,
@@ -197,11 +253,13 @@ button:disabled {
   padding: 14px;
 }
 
-.frontmatter-editor {
+.frontmatter-editor,
+.config-editor {
   display: block;
 }
 
 .frontmatter-editor span,
+.config-editor span,
 .preview-header span {
   color: #48554f;
   font-size: 12px;
@@ -209,10 +267,10 @@ button:disabled {
   text-transform: uppercase;
 }
 
-.frontmatter-editor textarea {
+.frontmatter-editor textarea,
+.config-editor textarea {
   display: block;
   width: 100%;
-  min-height: 180px;
   margin-top: 8px;
   resize: vertical;
   border: 1px solid #c6cec8;
@@ -223,6 +281,16 @@ button:disabled {
   font-size: 13px;
   line-height: 1.45;
   padding: 12px;
+}
+
+.frontmatter-editor textarea {
+  min-height: 180px;
+}
+
+.config-editor textarea {
+  height: calc(100vh - 150px);
+  min-height: 520px;
+  resize: none;
 }
 
 .markdown-editor {
@@ -314,6 +382,12 @@ button:disabled {
 
   .editor-grid {
     grid-template-columns: 1fr;
+  }
+
+  .topbar,
+  .topbar-left {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .preview-pane {

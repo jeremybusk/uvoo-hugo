@@ -44,6 +44,11 @@ type Config = {
   hugoRunning: boolean
 }
 
+type SiteConfig = {
+  path: string
+  body: string
+}
+
 type SaveResult = {
   ok: boolean
   output?: string
@@ -54,6 +59,16 @@ type SaveResult = {
 const api = {
   async getConfig(): Promise<Config> {
     return request('/api/config')
+  },
+  async getSiteConfig(): Promise<SiteConfig> {
+    return request('/api/site-config')
+  },
+  async saveSiteConfig(body: string): Promise<SaveResult> {
+    return request('/api/site-config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body })
+    })
   },
   async listPages(): Promise<PageSummary[]> {
     return request('/api/pages')
@@ -90,10 +105,13 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 function App() {
+  const [activeTab, setActiveTab] = useState<'content' | 'config'>('content')
   const [config, setConfig] = useState<Config | null>(null)
   const [pages, setPages] = useState<PageSummary[]>([])
   const [selectedPath, setSelectedPath] = useState('')
   const [page, setPage] = useState<Page | null>(null)
+  const [siteConfig, setSiteConfig] = useState<SiteConfig | null>(null)
+  const [siteConfigBody, setSiteConfigBody] = useState('')
   const [body, setBody] = useState('')
   const [frontMatter, setFrontMatter] = useState('')
   const [status, setStatus] = useState('Loading editor...')
@@ -156,10 +174,22 @@ function App() {
   }, [selectedPath])
 
   useEffect(() => {
+    if (activeTab !== 'config' || siteConfig) return
+    api
+      .getSiteConfig()
+      .then((nextConfig) => {
+        setSiteConfig(nextConfig)
+        setSiteConfigBody(nextConfig.body)
+        setStatus(`Editing ${nextConfig.path}`)
+      })
+      .catch((error) => setStatus(error.message))
+  }, [activeTab, siteConfig])
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
         event.preventDefault()
-        void save()
+        void saveCurrent()
       }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -172,6 +202,7 @@ function App() {
   })
 
   const previewURL = page && config ? `${config.previewURL.replace(/\/$/, '')}${page.url}?editor=${previewTick}` : ''
+  const sitePreviewURL = config ? `${config.previewURL}?editor=${previewTick}` : ''
 
   async function refreshPages(pathToSelect = selectedPath) {
     const nextPages = await api.listPages()
@@ -199,6 +230,30 @@ function App() {
     } finally {
       setSaving(false)
     }
+  }
+
+  async function saveSiteConfig() {
+    if (!siteConfig || saving) return
+    setSaving(true)
+    setStatus('Saving Hugo config...')
+    try {
+      const result = await api.saveSiteConfig(siteConfigBody)
+      setPreviewTick((tick) => tick + 1)
+      setSiteConfig({ ...siteConfig, body: siteConfigBody })
+      setStatus(result.ok ? 'Saved hugo.toml and Hugo build passed.' : `Saved hugo.toml, but Hugo reported: ${result.error}`)
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Config save failed.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function saveCurrent() {
+    if (activeTab === 'config') {
+      await saveSiteConfig()
+      return
+    }
+    await save()
   }
 
   async function createPage() {
@@ -239,93 +294,163 @@ function App() {
           </div>
         </div>
 
-        <div className="sidebar-actions">
-          <input
-            aria-label="Filter pages"
-            placeholder="Filter pages"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-          <button type="button" onClick={createPage}>New</button>
-        </div>
+        {activeTab === 'content' ? (
+          <>
+            <div className="sidebar-actions">
+              <input
+                aria-label="Filter pages"
+                placeholder="Filter pages"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+              <button type="button" onClick={createPage}>New</button>
+            </div>
 
-        <nav className="page-list" aria-label="Content pages">
-          {filteredPages.map((item) => (
-            <button
-              type="button"
-              className={item.path === selectedPath ? 'selected' : ''}
-              key={item.path}
-              onClick={() => setSelectedPath(item.path)}
-            >
-              <span>{item.title}</span>
-              <small>{item.path}</small>
-            </button>
-          ))}
-        </nav>
+            <nav className="page-list" aria-label="Content pages">
+              {filteredPages.map((item) => (
+                <button
+                  type="button"
+                  className={item.path === selectedPath ? 'selected' : ''}
+                  key={item.path}
+                  onClick={() => setSelectedPath(item.path)}
+                >
+                  <span>{item.title}</span>
+                  <small>{item.path}</small>
+                </button>
+              ))}
+            </nav>
+          </>
+        ) : (
+          <div className="config-sidebar">
+            <span>Config File</span>
+            <strong>{siteConfig?.path || 'hugo.toml'}</strong>
+            <p>Edit Hugo site settings, menus, params, markup, imaging, and other top-level configuration.</p>
+          </div>
+        )}
       </aside>
 
       <section className="workspace">
         <header className="topbar">
-          <div>
-            <strong>{page?.title || 'Select a page'}</strong>
-            {page && <span>{page.path}</span>}
+          <div className="topbar-left">
+            <div className="tabs" aria-label="Editor sections">
+              <button
+                type="button"
+                className={activeTab === 'content' ? 'active' : ''}
+                onClick={() => setActiveTab('content')}
+              >
+                Content
+              </button>
+              <button
+                type="button"
+                className={activeTab === 'config' ? 'active' : ''}
+                onClick={() => setActiveTab('config')}
+              >
+                Config
+              </button>
+            </div>
+            <div>
+              <strong>{activeTab === 'config' ? 'Site config' : page?.title || 'Select a page'}</strong>
+              {activeTab === 'config' ? <span>{siteConfig?.path || 'hugo.toml'}</span> : page && <span>{page.path}</span>}
+            </div>
           </div>
           <div className="topbar-actions">
-            <button type="button" onClick={() => setShowFrontMatter((value) => !value)}>
-              {showFrontMatter ? 'Hide Fields' : 'Show Fields'}
-            </button>
+            {activeTab === 'content' && (
+              <button type="button" onClick={() => setShowFrontMatter((value) => !value)}>
+                {showFrontMatter ? 'Hide Fields' : 'Show Fields'}
+              </button>
+            )}
             <button type="button" onClick={startPreview}>Preview</button>
-            <button type="button" className="primary" onClick={save} disabled={!page || saving}>
+            <button
+              type="button"
+              className="primary"
+              onClick={saveCurrent}
+              disabled={(activeTab === 'content' && !page) || (activeTab === 'config' && !siteConfig) || saving}
+            >
               {saving ? 'Saving' : 'Save'}
             </button>
           </div>
         </header>
 
-        <div className="editor-grid">
-          <section className="editor-pane">
-            {page ? (
-              <>
-                {showFrontMatter && (
-                  <label className="frontmatter-editor">
-                    <span>Front matter</span>
-                    <textarea
-                      spellCheck={false}
-                      value={frontMatter}
-                      onChange={(event) => setFrontMatter(event.target.value)}
+        {activeTab === 'content' ? (
+          <div className="editor-grid">
+            <section className="editor-pane">
+              {page ? (
+                <>
+                  {showFrontMatter && (
+                    <label className="frontmatter-editor">
+                      <span>Front matter</span>
+                      <textarea
+                        spellCheck={false}
+                        value={frontMatter}
+                        onChange={(event) => setFrontMatter(event.target.value)}
+                      />
+                    </label>
+                  )}
+                  <div className="markdown-editor">
+                    <MDXEditor
+                      key={page.path}
+                      markdown={body}
+                      onChange={setBody}
+                      plugins={plugins}
+                      contentEditableClassName="mdx-content"
                     />
-                  </label>
-                )}
-                <div className="markdown-editor">
-                  <MDXEditor
-                    key={page.path}
-                    markdown={body}
-                    onChange={setBody}
-                    plugins={plugins}
-                    contentEditableClassName="mdx-content"
-                  />
-                </div>
-              </>
-            ) : (
-              <div className="empty-state">Choose a Markdown file to start editing.</div>
-            )}
-          </section>
-
-          <section className="preview-pane">
-            <div className="preview-header">
-              <span>Hugo preview</span>
-              {page && config && (
-                <a href={previewURL} target="_blank" rel="noreferrer">
-                  Open
-                </a>
+                  </div>
+                </>
+              ) : (
+                <div className="empty-state">Choose a Markdown file to start editing.</div>
               )}
-            </div>
-            {previewURL ? (
-              <iframe title="Hugo preview" src={previewURL} />
-            ) : (
-              <div className="empty-state">Preview appears after selecting a page.</div>
-            )}
-          </section>
-        </div>
+            </section>
+
+            <section className="preview-pane">
+              <div className="preview-header">
+                <span>Hugo preview</span>
+                {page && config && (
+                  <a href={previewURL} target="_blank" rel="noreferrer">
+                    Open
+                  </a>
+                )}
+              </div>
+              {previewURL ? (
+                <iframe title="Hugo preview" src={previewURL} />
+              ) : (
+                <div className="empty-state">Preview appears after selecting a page.</div>
+              )}
+            </section>
+          </div>
+        ) : (
+          <div className="editor-grid">
+            <section className="editor-pane">
+              {siteConfig ? (
+                <label className="config-editor">
+                  <span>hugo.toml</span>
+                  <textarea
+                    spellCheck={false}
+                    value={siteConfigBody}
+                    onChange={(event) => setSiteConfigBody(event.target.value)}
+                  />
+                </label>
+              ) : (
+                <div className="empty-state">Loading hugo.toml...</div>
+              )}
+            </section>
+
+            <section className="preview-pane">
+              <div className="preview-header">
+                <span>Hugo preview</span>
+                {config && (
+                  <a href={sitePreviewURL} target="_blank" rel="noreferrer">
+                    Open
+                  </a>
+                )}
+              </div>
+              {sitePreviewURL ? (
+                <iframe title="Hugo preview" src={sitePreviewURL} />
+              ) : (
+                <div className="empty-state">Preview appears after config loads.</div>
+              )}
+            </section>
+          </div>
+        )}
 
         <footer className="statusbar">
           <span>{status}</span>
