@@ -22,6 +22,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 )
 
 //go:embed web/dist
@@ -79,6 +80,17 @@ type saveSiteConfigRequest struct {
 	Body string `json:"body"`
 }
 
+type mediaItem struct {
+	Path      string `json:"path"`
+	Name      string `json:"name"`
+	Kind      string `json:"kind"`
+	Size      int64  `json:"size"`
+	Modified  string `json:"modified"`
+	PublicURL string `json:"publicURL"`
+	Download  string `json:"download"`
+	Snippet   string `json:"snippet"`
+}
+
 func main() {
 	addr := flag.String("addr", envDefault("UVOOHUGO_EDITOR_ADDR", "127.0.0.1:1314"), "editor server address")
 	site := flag.String("site", envDefault("UVOOHUGO_EDITOR_SITE", "hugo_website_demo"), "Hugo site directory")
@@ -134,6 +146,8 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/config", s.withCORS(s.handleConfig))
 	mux.HandleFunc("/api/site-config", s.withCORS(s.handleSiteConfig))
+	mux.HandleFunc("/api/media", s.withCORS(s.handleMedia))
+	mux.HandleFunc("/api/media/download", s.withCORS(s.handleMediaDownload))
 	mux.HandleFunc("/api/pages", s.withCORS(s.handlePages))
 	mux.HandleFunc("/api/page", s.withCORS(s.handlePage))
 	mux.HandleFunc("/api/preview/start", s.withCORS(s.handlePreviewStart))
@@ -249,6 +263,152 @@ func (s *server) handleSiteConfig(w http.ResponseWriter, r *http.Request) {
 	default:
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 	}
+}
+
+func (s *server) handleMedia(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		s.listMedia(w, r)
+	case http.MethodPost:
+		s.uploadMedia(w, r)
+	case http.MethodDelete:
+		s.deleteMedia(w, r)
+	default:
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+	}
+}
+
+func (s *server) listMedia(w http.ResponseWriter, r *http.Request) {
+	kindFilter := strings.TrimSpace(r.URL.Query().Get("kind"))
+	var items []mediaItem
+	for _, root := range mediaRoots() {
+		if kindFilter != "" && kindFilter != "all" && kindFilter != root.kind {
+			continue
+		}
+		dir := filepath.Join(s.siteDir, root.dir)
+		if info, err := os.Stat(dir); err != nil || !info.IsDir() {
+			continue
+		}
+		err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if d.IsDir() {
+				return nil
+			}
+			rel, err := filepath.Rel(s.siteDir, path)
+			if err != nil {
+				return err
+			}
+			rel = filepath.ToSlash(rel)
+			kind, ok := mediaKindForPath(rel)
+			if !ok || (kindFilter != "" && kindFilter != "all" && kindFilter != kind) {
+				return nil
+			}
+			info, err := d.Info()
+			if err != nil {
+				return err
+			}
+			items = append(items, s.mediaItem(rel, kind, info))
+			return nil
+		})
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].Kind == items[j].Kind {
+			return items[i].Path < items[j].Path
+		}
+		return items[i].Kind < items[j].Kind
+	})
+	writeJSON(w, http.StatusOK, items)
+}
+
+func (s *server) uploadMedia(w http.ResponseWriter, r *http.Request) {
+	const maxUploadSize = 100 << 20
+	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
+	if err := r.ParseMultipartForm(maxUploadSize); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	kind := strings.TrimSpace(r.FormValue("kind"))
+	root, ok := mediaRootForKind(kind)
+	if !ok {
+		writeError(w, http.StatusBadRequest, "media kind must be images, docs, or videos")
+		return
+	}
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	defer file.Close()
+
+	name, err := sanitizeUploadName(header.Filename)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if !allowedMediaExtension(root.kind, filepath.Ext(name)) {
+		writeError(w, http.StatusBadRequest, "file extension is not allowed for this media kind")
+		return
+	}
+	dir := filepath.Join(s.siteDir, root.dir)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	target := uniqueMediaPath(dir, name)
+	out, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0644)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if _, err := io.Copy(out, file); err != nil {
+		_ = out.Close()
+		_ = os.Remove(target)
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if err := out.Close(); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	info, err := os.Stat(target)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	rel, _ := filepath.Rel(s.siteDir, target)
+	writeJSON(w, http.StatusCreated, s.mediaItem(filepath.ToSlash(rel), root.kind, info))
+}
+
+func (s *server) deleteMedia(w http.ResponseWriter, r *http.Request) {
+	fullPath, rel, err := s.safeMediaPath(r.URL.Query().Get("path"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := os.Remove(fullPath); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"deleted": true, "path": rel})
+}
+
+func (s *server) handleMediaDownload(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	fullPath, _, err := s.safeMediaPath(r.URL.Query().Get("path"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	http.ServeFile(w, r, fullPath)
 }
 
 func (s *server) readSiteConfig(w http.ResponseWriter, r *http.Request) {
@@ -504,6 +664,168 @@ func (s *server) siteConfigPath() string {
 		}
 	}
 	return filepath.Join(s.siteDir, "hugo.yaml")
+}
+
+type mediaRoot struct {
+	kind string
+	dir  string
+}
+
+func mediaRoots() []mediaRoot {
+	return []mediaRoot{
+		{kind: "images", dir: "assets/images"},
+		{kind: "docs", dir: "static/media/docs"},
+		{kind: "videos", dir: "static/media/video"},
+	}
+}
+
+func mediaRootForKind(kind string) (mediaRoot, bool) {
+	for _, root := range mediaRoots() {
+		if root.kind == kind {
+			return root, true
+		}
+	}
+	return mediaRoot{}, false
+}
+
+func mediaKindForPath(path string) (string, bool) {
+	path = strings.TrimPrefix(filepath.ToSlash(path), "/")
+	for _, root := range mediaRoots() {
+		prefix := strings.TrimSuffix(root.dir, "/") + "/"
+		if strings.HasPrefix(path, prefix) {
+			if allowedMediaExtension(root.kind, filepath.Ext(path)) {
+				return root.kind, true
+			}
+			return "", false
+		}
+	}
+	return "", false
+}
+
+func allowedMediaExtension(kind, ext string) bool {
+	ext = strings.ToLower(ext)
+	allowed := map[string][]string{
+		"images": {".jpg", ".jpeg", ".png", ".webp", ".gif"},
+		"docs":   {".pdf"},
+		"videos": {".mp4", ".webm"},
+	}
+	for _, candidate := range allowed[kind] {
+		if ext == candidate {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *server) safeMediaPath(path string) (string, string, error) {
+	if path == "" {
+		return "", "", errors.New("path is required")
+	}
+	path = strings.TrimPrefix(strings.ReplaceAll(path, "\\", "/"), "/")
+	path = filepath.Clean(filepath.FromSlash(path))
+	if path == "." || filepath.IsAbs(path) || strings.HasPrefix(path, ".."+string(filepath.Separator)) {
+		return "", "", errors.New("invalid media path")
+	}
+	rel := filepath.ToSlash(path)
+	if _, ok := mediaKindForPath(rel); !ok {
+		return "", "", errors.New("media path is not in an allowed media directory")
+	}
+	fullPath := filepath.Join(s.siteDir, path)
+	checkedRel, err := filepath.Rel(s.siteDir, fullPath)
+	if err != nil || checkedRel == ".." || strings.HasPrefix(checkedRel, ".."+string(filepath.Separator)) {
+		return "", "", errors.New("media path escapes site directory")
+	}
+	if info, err := os.Stat(fullPath); err != nil || info.IsDir() {
+		return "", "", errors.New("media file not found")
+	}
+	return fullPath, rel, nil
+}
+
+func sanitizeUploadName(name string) (string, error) {
+	name = filepath.Base(strings.ReplaceAll(name, "\\", "/"))
+	name = strings.TrimSpace(name)
+	if name == "" || name == "." || name == ".." {
+		return "", errors.New("invalid filename")
+	}
+	ext := strings.ToLower(filepath.Ext(name))
+	base := strings.TrimSuffix(name, filepath.Ext(name))
+	var out strings.Builder
+	lastDash := false
+	for _, r := range strings.ToLower(base) {
+		switch {
+		case unicode.IsLetter(r), unicode.IsDigit(r):
+			out.WriteRune(r)
+			lastDash = false
+		case r == '-' || r == '_':
+			out.WriteRune(r)
+			lastDash = false
+		case !lastDash:
+			out.WriteRune('-')
+			lastDash = true
+		}
+	}
+	cleanBase := strings.Trim(out.String(), "-_")
+	if cleanBase == "" || ext == "" {
+		return "", errors.New("invalid filename")
+	}
+	return cleanBase + ext, nil
+}
+
+func uniqueMediaPath(dir, name string) string {
+	target := filepath.Join(dir, name)
+	if _, err := os.Stat(target); errors.Is(err, os.ErrNotExist) {
+		return target
+	}
+	ext := filepath.Ext(name)
+	base := strings.TrimSuffix(name, ext)
+	for i := 2; ; i++ {
+		target = filepath.Join(dir, fmt.Sprintf("%s-%d%s", base, i, ext))
+		if _, err := os.Stat(target); errors.Is(err, os.ErrNotExist) {
+			return target
+		}
+	}
+}
+
+func (s *server) mediaItem(rel, kind string, info os.FileInfo) mediaItem {
+	name := filepath.Base(rel)
+	download := "/api/media/download?path=" + url.QueryEscape(rel)
+	publicURL := mediaPublicURL(rel, kind)
+	return mediaItem{
+		Path:      rel,
+		Name:      name,
+		Kind:      kind,
+		Size:      info.Size(),
+		Modified:  info.ModTime().Format(time.RFC3339),
+		PublicURL: publicURL,
+		Download:  download,
+		Snippet:   mediaSnippet(rel, kind, publicURL),
+	}
+}
+
+func mediaPublicURL(rel, kind string) string {
+	switch kind {
+	case "docs":
+		return "/" + strings.TrimPrefix(strings.TrimPrefix(rel, "static/"), "/")
+	case "videos":
+		return "/" + strings.TrimPrefix(strings.TrimPrefix(rel, "static/"), "/")
+	default:
+		return ""
+	}
+}
+
+func mediaSnippet(rel, kind, publicURL string) string {
+	name := filepath.Base(rel)
+	switch kind {
+	case "images":
+		src := strings.TrimPrefix(rel, "assets/")
+		return fmt.Sprintf(`{{< image src="%s" alt="" >}}`, src)
+	case "docs":
+		return fmt.Sprintf("[%s](%s)", name, publicURL)
+	case "videos":
+		return fmt.Sprintf(`{{< video src="%s" >}}`, publicURL)
+	default:
+		return rel
+	}
 }
 
 func (s *server) safeContentPath(path string) (string, string, error) {

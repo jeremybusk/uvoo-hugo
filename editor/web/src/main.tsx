@@ -49,6 +49,19 @@ type SiteConfig = {
   body: string
 }
 
+type MediaKind = 'all' | 'images' | 'docs' | 'videos'
+
+type MediaItem = {
+  path: string
+  name: string
+  kind: 'images' | 'docs' | 'videos'
+  size: number
+  modified: string
+  publicURL: string
+  download: string
+  snippet: string
+}
+
 type SaveResult = {
   ok: boolean
   output?: string
@@ -89,6 +102,23 @@ const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ path, title })
     })
+  },
+  async listMedia(kind: MediaKind): Promise<MediaItem[]> {
+    return request(`/api/media?kind=${encodeURIComponent(kind)}`)
+  },
+  async uploadMedia(kind: Exclude<MediaKind, 'all'>, file: File): Promise<MediaItem> {
+    const form = new FormData()
+    form.append('kind', kind)
+    form.append('file', file)
+    return request('/api/media', {
+      method: 'POST',
+      body: form
+    })
+  },
+  async deleteMedia(path: string): Promise<{ deleted: boolean; path: string }> {
+    return request(`/api/media?path=${encodeURIComponent(path)}`, {
+      method: 'DELETE'
+    })
   }
 }
 
@@ -101,14 +131,26 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   return data
 }
 
+function formatBytes(size: number): string {
+  if (size < 1024) return `${size} B`
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
+  return `${(size / 1024 / 1024).toFixed(1)} MB`
+}
+
 function App() {
-  const [activeTab, setActiveTab] = useState<'content' | 'config'>('content')
+  const [activeTab, setActiveTab] = useState<'content' | 'config' | 'media'>('content')
   const [config, setConfig] = useState<Config | null>(null)
   const [pages, setPages] = useState<PageSummary[]>([])
   const [selectedPath, setSelectedPath] = useState('')
   const [page, setPage] = useState<Page | null>(null)
   const [siteConfig, setSiteConfig] = useState<SiteConfig | null>(null)
   const [siteConfigBody, setSiteConfigBody] = useState('')
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([])
+  const [mediaKind, setMediaKind] = useState<MediaKind>('all')
+  const [uploadKind, setUploadKind] = useState<Exclude<MediaKind, 'all'>>('images')
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [youtubeId, setYoutubeId] = useState('')
   const [body, setBody] = useState('')
   const [frontMatter, setFrontMatter] = useState('')
   const [status, setStatus] = useState('Loading editor...')
@@ -185,6 +227,11 @@ function App() {
   }, [activeTab, siteConfig])
 
   useEffect(() => {
+    if (activeTab !== 'media') return
+    void loadMedia()
+  }, [activeTab, mediaKind])
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
         event.preventDefault()
@@ -202,7 +249,7 @@ function App() {
 
   const previewURL = page && config ? `${config.previewURL.replace(/\/$/, '')}${page.url}?editor=${previewTick}` : ''
   const sitePreviewURL = config ? `${config.previewURL}?editor=${previewTick}` : ''
-  const activePreviewURL = activeTab === 'config' ? sitePreviewURL : previewURL
+  const activePreviewURL = activeTab === 'content' ? previewURL : sitePreviewURL
 
   async function refreshPages(pathToSelect = selectedPath) {
     const nextPages = await api.listPages()
@@ -254,6 +301,55 @@ function App() {
       return
     }
     await save()
+  }
+
+  async function loadMedia() {
+    try {
+      const items = await api.listMedia(mediaKind)
+      setMediaItems(items)
+      setStatus(`Loaded ${items.length} media item${items.length === 1 ? '' : 's'}.`)
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Media load failed.')
+    }
+  }
+
+  async function uploadMedia() {
+    if (!uploadFile || uploading) return
+    setUploading(true)
+    setStatus('Uploading media...')
+    try {
+      const item = await api.uploadMedia(uploadKind, uploadFile)
+      setUploadFile(null)
+      setMediaKind(uploadKind)
+      const items = await api.listMedia(uploadKind)
+      setMediaItems(items)
+      setStatus(`Uploaded ${item.name}`)
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Upload failed.')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  async function deleteMedia(path: string) {
+    if (!window.confirm(`Delete ${path}?`)) return
+    setStatus('Deleting media...')
+    try {
+      await api.deleteMedia(path)
+      await loadMedia()
+      setStatus(`Deleted ${path}`)
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Delete failed.')
+    }
+  }
+
+  async function copyText(text: string, label: string) {
+    try {
+      await navigator.clipboard.writeText(text)
+      setStatus(`Copied ${label}.`)
+    } catch {
+      setStatus('Copy failed.')
+    }
   }
 
   async function createPage() {
@@ -312,6 +408,46 @@ function App() {
               ))}
             </nav>
           </>
+        ) : activeTab === 'media' ? (
+          <div className="media-sidebar">
+            <label>
+              <span>Show</span>
+              <select value={mediaKind} onChange={(event) => setMediaKind(event.target.value as MediaKind)}>
+                <option value="all">All media</option>
+                <option value="images">Images</option>
+                <option value="docs">Documents</option>
+                <option value="videos">Videos</option>
+              </select>
+            </label>
+            <label>
+              <span>Upload To</span>
+              <select value={uploadKind} onChange={(event) => setUploadKind(event.target.value as Exclude<MediaKind, 'all'>)}>
+                <option value="images">Images</option>
+                <option value="docs">Documents</option>
+                <option value="videos">Videos</option>
+              </select>
+            </label>
+            <input
+              type="file"
+              onChange={(event) => setUploadFile(event.target.files?.[0] || null)}
+            />
+            <button type="button" className="primary" onClick={uploadMedia} disabled={!uploadFile || uploading}>
+              {uploading ? 'Uploading' : 'Upload'}
+            </button>
+            <div className="youtube-tool">
+              <label>
+                <span>YouTube ID</span>
+                <input value={youtubeId} onChange={(event) => setYoutubeId(event.target.value.trim())} />
+              </label>
+              <button
+                type="button"
+                disabled={!youtubeId}
+                onClick={() => copyText(`{{< youtube ${youtubeId} >}}`, 'YouTube shortcode')}
+              >
+                Copy Shortcode
+              </button>
+            </div>
+          </div>
         ) : (
           <div className="config-sidebar">
             <span>Config File</span>
@@ -339,10 +475,23 @@ function App() {
               >
                 Config
               </button>
+              <button
+                type="button"
+                className={activeTab === 'media' ? 'active' : ''}
+                onClick={() => setActiveTab('media')}
+              >
+                Media
+              </button>
             </div>
             <div>
-              <strong>{activeTab === 'config' ? 'Site config' : page?.title || 'Select a page'}</strong>
-              {activeTab === 'config' ? <span>{siteConfig?.path || 'hugo.yaml'}</span> : page && <span>{page.path}</span>}
+              <strong>
+                {activeTab === 'media' ? 'Media library' : activeTab === 'config' ? 'Site config' : page?.title || 'Select a page'}
+              </strong>
+              {activeTab === 'media' ? (
+                <span>{mediaItems.length} item{mediaItems.length === 1 ? '' : 's'}</span>
+              ) : activeTab === 'config' ? (
+                <span>{siteConfig?.path || 'hugo.yaml'}</span>
+              ) : page && <span>{page.path}</span>}
             </div>
           </div>
           <div className="topbar-actions">
@@ -360,14 +509,16 @@ function App() {
               {showPreview ? 'Hide Preview' : 'Show Preview'}
             </button>
             <button type="button" onClick={openLiveSite}>Live Site</button>
-            <button
-              type="button"
-              className="primary"
-              onClick={saveCurrent}
-              disabled={(activeTab === 'content' && !page) || (activeTab === 'config' && !siteConfig) || saving}
-            >
-              {saving ? 'Saving' : 'Save'}
-            </button>
+            {activeTab !== 'media' && (
+              <button
+                type="button"
+                className="primary"
+                onClick={saveCurrent}
+                disabled={(activeTab === 'content' && !page) || (activeTab === 'config' && !siteConfig) || saving}
+              >
+                {saving ? 'Saving' : 'Save'}
+              </button>
+            )}
           </div>
         </header>
 
@@ -410,6 +561,37 @@ function App() {
               ) : (
                 <div className="empty-state">Choose a Markdown file to start editing.</div>
               )
+            ) : activeTab === 'media' ? (
+              <section className="media-library">
+                {mediaItems.length > 0 ? (
+                  mediaItems.map((item) => (
+                    <article className="media-card" key={item.path}>
+                      <div className="media-thumb">
+                        {item.kind === 'images' ? (
+                          <img src={item.download} alt="" />
+                        ) : item.kind === 'videos' ? (
+                          <video src={item.download} preload="metadata" />
+                        ) : (
+                          <span>PDF</span>
+                        )}
+                      </div>
+                      <div className="media-card-body">
+                        <strong>{item.name}</strong>
+                        <small>{item.path}</small>
+                        <small>{formatBytes(item.size)}</small>
+                        <code>{item.snippet}</code>
+                        <div className="media-actions">
+                          <button type="button" onClick={() => copyText(item.snippet, 'snippet')}>Copy</button>
+                          <a href={item.download} download>Download</a>
+                          <button type="button" onClick={() => deleteMedia(item.path)}>Delete</button>
+                        </div>
+                      </div>
+                    </article>
+                  ))
+                ) : (
+                  <div className="empty-state">No media files found.</div>
+                )}
+              </section>
             ) : siteConfig ? (
               <label className="config-editor">
                 <span>{siteConfig.path}</span>

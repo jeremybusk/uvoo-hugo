@@ -37,6 +37,13 @@ Use `Hide Preview` for more editing space, or `Live Site` to open the current
 preview in a separate browser tab. In `Content`, use `Raw Markdown` to edit the
 Markdown body directly and `Rich Text` to return to the WYSIWYG editor.
 
+Switch to `Media` to upload and manage site media. Images are stored in
+`assets/images/`, PDFs in `static/media/docs/`, and local videos in
+`static/media/video/`. Each media item includes a copyable Markdown or Hugo
+shortcode snippet for use in content pages. For normal public website videos,
+prefer the YouTube shortcode because hosted video handles bandwidth, mobile
+playback, captions, and adaptive streaming better than local files.
+
 ## Development Run
 
 Set editor credentials:
@@ -105,6 +112,8 @@ access, but credentials are only confidential over TLS.
 - Only Markdown files under the Hugo `content/` directory are editable.
 - The `Config` tab edits the site config file. The editor looks for
   `hugo.yaml`, `hugo.yml`, `hugo.toml`, then `hugo.json`.
+- The `Media` tab accepts JPG, PNG, WebP, GIF, PDF, MP4, and WebM files.
+  SVG is intentionally rejected.
 - Front matter is edited separately from the Markdown body to avoid corrupting
   Hugo-specific fields.
 - Saving writes the file, runs `hugo --source <site> --quiet`, and reports any

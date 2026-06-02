@@ -55,6 +55,17 @@ to open the current preview in another tab. In `Content`, use `Raw Markdown` to
 switch from the rich text editor to direct Markdown editing, then `Rich Text` to
 switch back.
 
+Use the `Media` tab to upload and manage reusable site media:
+
+- Images go to `assets/images/` and copy as Hugo image shortcodes.
+- PDFs go to `static/media/docs/` and copy as Markdown links.
+- Local videos go to `static/media/video/` and copy as Hugo video shortcodes.
+- YouTube videos can be added by copying a Hugo YouTube shortcode from a video ID.
+
+For most public website videos, prefer YouTube or Vimeo embeds instead of
+hosting video files directly. Local video uploads are best for short clips where
+you accept the bandwidth and browser-format tradeoffs.
+
 ## Development Run
 
 For frontend development, run the Go API and Vite separately:

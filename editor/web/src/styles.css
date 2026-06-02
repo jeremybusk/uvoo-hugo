@@ -163,6 +163,46 @@ button:disabled {
   line-height: 1.5;
 }
 
+.media-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.media-sidebar label,
+.youtube-tool label {
+  display: grid;
+  gap: 6px;
+}
+
+.media-sidebar span,
+.youtube-tool span {
+  color: #48554f;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.media-sidebar select,
+.media-sidebar input,
+.youtube-tool input {
+  width: 100%;
+  min-height: 36px;
+  min-width: 0;
+  border: 1px solid #bfc8c1;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 0 10px;
+}
+
+.youtube-tool {
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e6e2;
+}
+
 .workspace {
   display: grid;
   min-width: 0;
@@ -309,6 +349,93 @@ button:disabled {
   height: 100%;
   min-height: 420px;
   resize: none;
+}
+
+.media-library {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+  align-content: start;
+}
+
+.media-card {
+  display: grid;
+  grid-template-rows: 160px auto;
+  overflow: hidden;
+  border: 1px solid #c6cec8;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.media-thumb {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #eef3ef;
+}
+
+.media-thumb img,
+.media-thumb video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.media-thumb span {
+  color: #48554f;
+  font-weight: 800;
+}
+
+.media-card-body {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+}
+
+.media-card-body strong,
+.media-card-body small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.media-card-body small {
+  color: #63706a;
+}
+
+.media-card-body code {
+  display: block;
+  overflow: auto;
+  min-height: 38px;
+  max-height: 76px;
+  border: 1px solid #d9ded9;
+  border-radius: 6px;
+  background: #fbfcfb;
+  padding: 8px;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.media-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.media-actions a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  border: 1px solid #bfc8c1;
+  border-radius: 6px;
+  padding: 0 12px;
+  color: #1d2428;
+  text-decoration: none;
+}
+
+.media-actions a:hover {
+  background: #eef3ef;
 }
 
 .markdown-editor {
