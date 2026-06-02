@@ -104,7 +104,8 @@ const api = {
     })
   },
   async listMedia(kind: MediaKind): Promise<MediaItem[]> {
-    return request(`/api/media?kind=${encodeURIComponent(kind)}`)
+    const items = await request<MediaItem[] | null>(`/api/media?kind=${encodeURIComponent(kind)}`)
+    return items || []
   },
   async uploadMedia(kind: Exclude<MediaKind, 'all'>, file: File): Promise<MediaItem> {
     const form = new FormData()

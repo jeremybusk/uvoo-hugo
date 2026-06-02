@@ -280,7 +280,7 @@ func (s *server) handleMedia(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) listMedia(w http.ResponseWriter, r *http.Request) {
 	kindFilter := strings.TrimSpace(r.URL.Query().Get("kind"))
-	var items []mediaItem
+	items := []mediaItem{}
 	for _, root := range mediaRoots() {
 		if kindFilter != "" && kindFilter != "all" && kindFilter != root.kind {
 			continue
