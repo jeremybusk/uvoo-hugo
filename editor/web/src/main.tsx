@@ -116,6 +116,7 @@ function App() {
   const [previewTick, setPreviewTick] = useState(0)
   const [showPreview, setShowPreview] = useState(true)
   const [showFrontMatter, setShowFrontMatter] = useState(true)
+  const [contentMode, setContentMode] = useState<'rich' | 'markdown'>('rich')
   const [query, setQuery] = useState('')
 
   const plugins = useMemo(
@@ -239,7 +240,7 @@ function App() {
       const result = await api.saveSiteConfig(siteConfigBody)
       setPreviewTick((tick) => tick + 1)
       setSiteConfig({ ...siteConfig, body: siteConfigBody })
-      setStatus(result.ok ? 'Saved hugo.toml and Hugo build passed.' : `Saved hugo.toml, but Hugo reported: ${result.error}`)
+      setStatus(result.ok ? `Saved ${siteConfig.path} and Hugo build passed.` : `Saved ${siteConfig.path}, but Hugo reported: ${result.error}`)
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Config save failed.')
     } finally {
@@ -314,7 +315,7 @@ function App() {
         ) : (
           <div className="config-sidebar">
             <span>Config File</span>
-            <strong>{siteConfig?.path || 'hugo.toml'}</strong>
+            <strong>{siteConfig?.path || 'hugo.yaml'}</strong>
             <p>Edit Hugo site settings, menus, params, markup, imaging, and other top-level configuration.</p>
           </div>
         )}
@@ -341,14 +342,19 @@ function App() {
             </div>
             <div>
               <strong>{activeTab === 'config' ? 'Site config' : page?.title || 'Select a page'}</strong>
-              {activeTab === 'config' ? <span>{siteConfig?.path || 'hugo.toml'}</span> : page && <span>{page.path}</span>}
+              {activeTab === 'config' ? <span>{siteConfig?.path || 'hugo.yaml'}</span> : page && <span>{page.path}</span>}
             </div>
           </div>
           <div className="topbar-actions">
             {activeTab === 'content' && (
-              <button type="button" onClick={() => setShowFrontMatter((value) => !value)}>
-                {showFrontMatter ? 'Hide Fields' : 'Show Fields'}
-              </button>
+              <>
+                <button type="button" onClick={() => setContentMode((value) => value === 'rich' ? 'markdown' : 'rich')}>
+                  {contentMode === 'rich' ? 'Raw Markdown' : 'Rich Text'}
+                </button>
+                <button type="button" onClick={() => setShowFrontMatter((value) => !value)}>
+                  {showFrontMatter ? 'Hide Fields' : 'Show Fields'}
+                </button>
+              </>
             )}
             <button type="button" onClick={() => setShowPreview((value) => !value)}>
               {showPreview ? 'Hide Preview' : 'Show Preview'}
@@ -380,22 +386,33 @@ function App() {
                       />
                     </label>
                   )}
-                  <div className="markdown-editor">
-                    <MDXEditor
-                      key={page.path}
-                      markdown={body}
-                      onChange={setBody}
-                      plugins={plugins}
-                      contentEditableClassName="mdx-content"
-                    />
-                  </div>
+                  {contentMode === 'rich' ? (
+                    <div className="markdown-editor">
+                      <MDXEditor
+                        key={`${page.path}:rich`}
+                        markdown={body}
+                        onChange={setBody}
+                        plugins={plugins}
+                        contentEditableClassName="mdx-content"
+                      />
+                    </div>
+                  ) : (
+                    <label className="raw-markdown-editor">
+                      <span>Markdown body</span>
+                      <textarea
+                        spellCheck={false}
+                        value={body}
+                        onChange={(event) => setBody(event.target.value)}
+                      />
+                    </label>
+                  )}
                 </>
               ) : (
                 <div className="empty-state">Choose a Markdown file to start editing.</div>
               )
             ) : siteConfig ? (
               <label className="config-editor">
-                <span>hugo.toml</span>
+                <span>{siteConfig.path}</span>
                 <textarea
                   spellCheck={false}
                   value={siteConfigBody}
@@ -403,7 +420,7 @@ function App() {
                 />
               </label>
             ) : (
-              <div className="empty-state">Loading hugo.toml...</div>
+              <div className="empty-state">Loading Hugo config...</div>
             )}
           </section>
 

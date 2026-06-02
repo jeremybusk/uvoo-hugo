@@ -497,7 +497,13 @@ func (s *server) listPages() ([]pageSummary, error) {
 }
 
 func (s *server) siteConfigPath() string {
-	return filepath.Join(s.siteDir, "hugo.toml")
+	for _, name := range []string{"hugo.yaml", "hugo.yml", "hugo.toml", "hugo.json"} {
+		path := filepath.Join(s.siteDir, name)
+		if info, err := os.Stat(path); err == nil && !info.IsDir() {
+			return path
+		}
+	}
+	return filepath.Join(s.siteDir, "hugo.yaml")
 }
 
 func (s *server) safeContentPath(path string) (string, string, error) {
