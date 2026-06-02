@@ -258,12 +258,14 @@ button:disabled {
 }
 
 .frontmatter-editor,
-.config-editor {
+.config-editor,
+.raw-markdown-editor {
   display: block;
 }
 
 .frontmatter-editor span,
 .config-editor span,
+.raw-markdown-editor span,
 .preview-header span {
   color: #48554f;
   font-size: 12px;
@@ -272,7 +274,8 @@ button:disabled {
 }
 
 .frontmatter-editor textarea,
-.config-editor textarea {
+.config-editor textarea,
+.raw-markdown-editor textarea {
   display: block;
   width: 100%;
   margin-top: 8px;
@@ -294,6 +297,17 @@ button:disabled {
 .config-editor textarea {
   height: calc(100vh - 150px);
   min-height: 520px;
+  resize: none;
+}
+
+.raw-markdown-editor {
+  flex: 1;
+  min-height: 420px;
+}
+
+.raw-markdown-editor textarea {
+  height: 100%;
+  min-height: 420px;
   resize: none;
 }
 

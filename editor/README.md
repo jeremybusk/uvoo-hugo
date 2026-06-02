@@ -32,9 +32,10 @@ credentials. The Hugo preview is served through the authenticated editor at
 `http://127.0.0.1:1314/preview/`.
 
 The editor opens on `Content` by default. Switch to `Config` to edit
-`hugo.toml`; saving config changes runs Hugo validation just like content saves.
+the Hugo config file; saving config changes runs Hugo validation just like content saves.
 Use `Hide Preview` for more editing space, or `Live Site` to open the current
-preview in a separate browser tab.
+preview in a separate browser tab. In `Content`, use `Raw Markdown` to edit the
+Markdown body directly and `Rich Text` to return to the WYSIWYG editor.
 
 ## Development Run
 
@@ -102,7 +103,8 @@ access, but credentials are only confidential over TLS.
 ## Notes
 
 - Only Markdown files under the Hugo `content/` directory are editable.
-- The `Config` tab edits `hugo.toml`.
+- The `Config` tab edits the site config file. The editor looks for
+  `hugo.yaml`, `hugo.yml`, `hugo.toml`, then `hugo.json`.
 - Front matter is edited separately from the Markdown body to avoid corrupting
   Hugo-specific fields.
 - Saving writes the file, runs `hugo --source <site> --quiet`, and reports any

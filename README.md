@@ -49,9 +49,11 @@ http://127.0.0.1:1314/preview/
 ```
 
 The editor opens on the `Content` tab by default. Use the `Config` tab to edit
-`hugo.toml`, including site params, menu items, markup settings, and other Hugo
+`hugo.yaml`, including site params, menu items, markup settings, and other Hugo
 configuration. Use `Hide Preview` for a full-width editing area, or `Live Site`
-to open the current preview in another tab.
+to open the current preview in another tab. In `Content`, use `Raw Markdown` to
+switch from the rich text editor to direct Markdown editing, then `Rich Text` to
+switch back.
 
 ## Development Run
 
