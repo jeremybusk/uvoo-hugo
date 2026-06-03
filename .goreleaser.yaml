@@ -1,6 +1,6 @@
 version: 2
 
-project_name: uvoohugo-editor
+project_name: uvoo-hugo-editor
 
 before:
   hooks:
@@ -8,9 +8,9 @@ before:
     - npm --prefix editor/web run build
 
 builds:
-  - id: uvoohugo-editor
+  - id: uvoo-hugo-editor
     main: ./editor
-    binary: uvoohugo-editor
+    binary: uvoo-hugo-editor
     env:
       - CGO_ENABLED=0
     goos:
@@ -31,10 +31,10 @@ archives:
 
 nfpms:
   - id: linux-packages
-    package_name: uvoohugo-editor
-    vendor: uvoohugo
-    homepage: https://github.com/uvoo/uvoohugo
-    maintainer: uvoohugo maintainers
+    package_name: uvoo-hugo-editor
+    vendor: uvoo-hugo
+    homepage: https://github.com/uvoo/uvoo-hugo
+    maintainer: uvoo-hugo maintainers
     description: Local authenticated editor for Hugo content files.
     license: MIT
     formats:
@@ -42,12 +42,12 @@ nfpms:
       - rpm
     bindir: /usr/bin
     contents:
-      - src: packaging/systemd/user/uvoohugo-editor.service
-        dst: /usr/lib/systemd/user/uvoohugo-editor.service
+      - src: packaging/systemd/user/uvoo-hugo-editor.service
+        dst: /usr/lib/systemd/user/uvoo-hugo-editor.service
       - src: packaging/editor.env.example
-        dst: /usr/share/doc/uvoohugo-editor/editor.env.example
+        dst: /usr/share/doc/uvoo-hugo-editor/editor.env.example
       - src: docs/PACKAGE.md
-        dst: /usr/share/doc/uvoohugo-editor/PACKAGE.md
+        dst: /usr/share/doc/uvoo-hugo-editor/PACKAGE.md
 
 checksum:
   name_template: checksums.txt

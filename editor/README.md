@@ -12,16 +12,16 @@ npm install
 npm run build
 cd ../..
 mkdir -p bin
-go build -o ./bin/uvoohugo-editor ./editor
+go build -o ./bin/uvoo-hugo-editor ./editor
 ```
 
 Set credentials and run the editor against `hugo_website_demo`:
 
 ```bash
-export UVOOHUGO_EDITOR_AUTH_USER=admin
-export UVOOHUGO_EDITOR_AUTH_PASSWORD="$(openssl rand -base64 32)"
+export UVOO_HUGO_EDITOR_AUTH_USER=admin
+export UVOO_HUGO_EDITOR_AUTH_PASSWORD="$(openssl rand -base64 32)"
 
-./bin/uvoohugo-editor \
+./bin/uvoo-hugo-editor \
   -site ./hugo_website_demo \
   -addr 127.0.0.1:1314 \
   -hugo-addr 127.0.0.1:1313
@@ -37,13 +37,20 @@ Use `Hide Preview` for more editing space, or `Live Site` to open the current
 preview in a separate browser tab. In `Content`, use `Raw Markdown` to edit the
 Markdown body directly and `Rich Text` to return to the WYSIWYG editor.
 
+Switch to `Media` to upload and manage site media. Images are stored in
+`assets/images/`, PDFs in `static/media/docs/`, and local videos in
+`static/media/video/`. Each media item includes a copyable Markdown or Hugo
+shortcode snippet for use in content pages. For normal public website videos,
+prefer the YouTube shortcode because hosted video handles bandwidth, mobile
+playback, captions, and adaptive streaming better than local files.
+
 ## Development Run
 
 Set editor credentials:
 
 ```bash
-export UVOOHUGO_EDITOR_AUTH_USER=admin
-export UVOOHUGO_EDITOR_AUTH_PASSWORD="$(openssl rand -base64 32)"
+export UVOO_HUGO_EDITOR_AUTH_USER=admin
+export UVOO_HUGO_EDITOR_AUTH_PASSWORD="$(openssl rand -base64 32)"
 ```
 
 Install the React dependencies once:
@@ -80,8 +87,8 @@ Build the React UI, then let the Go server serve it:
 cd editor/web
 npm run build
 cd ../..
-UVOOHUGO_EDITOR_AUTH_USER=admin \
-UVOOHUGO_EDITOR_AUTH_PASSWORD=change-me \
+UVOO_HUGO_EDITOR_AUTH_USER=admin \
+UVOO_HUGO_EDITOR_AUTH_PASSWORD=change-me \
 go run ./editor -site ./hugo_website_demo
 ```
 
@@ -92,8 +99,8 @@ Open `http://127.0.0.1:1314`.
 HTTP Basic Auth is required. Set credentials with flags or environment variables:
 
 ```bash
-UVOOHUGO_EDITOR_AUTH_USER=admin \
-UVOOHUGO_EDITOR_AUTH_PASSWORD=change-me \
+UVOO_HUGO_EDITOR_AUTH_USER=admin \
+UVOO_HUGO_EDITOR_AUTH_PASSWORD=change-me \
 go run ./editor
 ```
 
@@ -105,6 +112,8 @@ access, but credentials are only confidential over TLS.
 - Only Markdown files under the Hugo `content/` directory are editable.
 - The `Config` tab edits the site config file. The editor looks for
   `hugo.yaml`, `hugo.yml`, `hugo.toml`, then `hugo.json`.
+- The `Media` tab accepts JPG, PNG, WebP, GIF, PDF, MP4, and WebM files.
+  SVG is intentionally rejected.
 - Front matter is edited separately from the Markdown body to avoid corrupting
   Hugo-specific fields.
 - Saving writes the file, runs `hugo --source <site> --quiet`, and reports any
