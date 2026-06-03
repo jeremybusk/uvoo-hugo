@@ -12,16 +12,16 @@ npm install
 npm run build
 cd ../..
 mkdir -p bin
-go build -o ./bin/uvoohugo-editor ./editor
+go build -o ./bin/uvoo-hugo-editor ./editor
 ```
 
 Set credentials and run the editor against `hugo_website_demo`:
 
 ```bash
-export UVOOHUGO_EDITOR_AUTH_USER=admin
-export UVOOHUGO_EDITOR_AUTH_PASSWORD="$(openssl rand -base64 32)"
+export UVOO_HUGO_EDITOR_AUTH_USER=admin
+export UVOO_HUGO_EDITOR_AUTH_PASSWORD="$(openssl rand -base64 32)"
 
-./bin/uvoohugo-editor \
+./bin/uvoo-hugo-editor \
   -site ./hugo_website_demo \
   -addr 127.0.0.1:1314 \
   -hugo-addr 127.0.0.1:1313
@@ -49,8 +49,8 @@ playback, captions, and adaptive streaming better than local files.
 Set editor credentials:
 
 ```bash
-export UVOOHUGO_EDITOR_AUTH_USER=admin
-export UVOOHUGO_EDITOR_AUTH_PASSWORD="$(openssl rand -base64 32)"
+export UVOO_HUGO_EDITOR_AUTH_USER=admin
+export UVOO_HUGO_EDITOR_AUTH_PASSWORD="$(openssl rand -base64 32)"
 ```
 
 Install the React dependencies once:
@@ -87,8 +87,8 @@ Build the React UI, then let the Go server serve it:
 cd editor/web
 npm run build
 cd ../..
-UVOOHUGO_EDITOR_AUTH_USER=admin \
-UVOOHUGO_EDITOR_AUTH_PASSWORD=change-me \
+UVOO_HUGO_EDITOR_AUTH_USER=admin \
+UVOO_HUGO_EDITOR_AUTH_PASSWORD=change-me \
 go run ./editor -site ./hugo_website_demo
 ```
 
@@ -99,8 +99,8 @@ Open `http://127.0.0.1:1314`.
 HTTP Basic Auth is required. Set credentials with flags or environment variables:
 
 ```bash
-UVOOHUGO_EDITOR_AUTH_USER=admin \
-UVOOHUGO_EDITOR_AUTH_PASSWORD=change-me \
+UVOO_HUGO_EDITOR_AUTH_USER=admin \
+UVOO_HUGO_EDITOR_AUTH_PASSWORD=change-me \
 go run ./editor
 ```
 

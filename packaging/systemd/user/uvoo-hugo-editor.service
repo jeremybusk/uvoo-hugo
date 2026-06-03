@@ -1,11 +1,11 @@
 [Unit]
 Description=UvooHugo local editor
-Documentation=file:/usr/share/doc/uvoohugo-editor/PACKAGE.md
+Documentation=file:/usr/share/doc/uvoo-hugo-editor/PACKAGE.md
 After=network.target
 
 [Service]
-EnvironmentFile=%h/.config/uvoohugo-editor/editor.env
-ExecStart=/usr/bin/uvoohugo-editor
+EnvironmentFile=%h/.config/uvoo-hugo-editor/editor.env
+ExecStart=/usr/bin/uvoo-hugo-editor
 Restart=on-failure
 RestartSec=3
 

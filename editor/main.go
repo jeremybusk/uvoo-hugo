@@ -92,15 +92,15 @@ type mediaItem struct {
 }
 
 func main() {
-	addr := flag.String("addr", envDefault("UVOOHUGO_EDITOR_ADDR", "127.0.0.1:1314"), "editor server address")
-	site := flag.String("site", envDefault("UVOOHUGO_EDITOR_SITE", "hugo_website_demo"), "Hugo site directory")
-	web := flag.String("web", envDefault("UVOOHUGO_EDITOR_WEB_DIR", "editor/web/dist"), "built React app directory")
-	hugoAddr := flag.String("hugo-addr", envDefault("UVOOHUGO_EDITOR_HUGO_ADDR", "127.0.0.1:1313"), "local Hugo preview server address")
-	publicURL := flag.String("public-url", os.Getenv("UVOOHUGO_EDITOR_PUBLIC_URL"), "public editor base URL used for Hugo preview links")
-	authUser := flag.String("auth-user", os.Getenv("UVOOHUGO_EDITOR_AUTH_USER"), "HTTP Basic Auth username")
-	authPassword := flag.String("auth-password", os.Getenv("UVOOHUGO_EDITOR_AUTH_PASSWORD"), "HTTP Basic Auth password")
-	authPasswordFile := flag.String("auth-password-file", os.Getenv("UVOOHUGO_EDITOR_AUTH_PASSWORD_FILE"), "file containing HTTP Basic Auth password")
-	startHugo := flag.Bool("start-hugo", envBool("UVOOHUGO_EDITOR_START_HUGO", true), "start Hugo preview server on launch")
+	addr := flag.String("addr", envDefault("UVOO_HUGO_EDITOR_ADDR", "127.0.0.1:1314"), "editor server address")
+	site := flag.String("site", envDefault("UVOO_HUGO_EDITOR_SITE", "hugo_website_demo"), "Hugo site directory")
+	web := flag.String("web", envDefault("UVOO_HUGO_EDITOR_WEB_DIR", "editor/web/dist"), "built React app directory")
+	hugoAddr := flag.String("hugo-addr", envDefault("UVOO_HUGO_EDITOR_HUGO_ADDR", "127.0.0.1:1313"), "local Hugo preview server address")
+	publicURL := flag.String("public-url", os.Getenv("UVOO_HUGO_EDITOR_PUBLIC_URL"), "public editor base URL used for Hugo preview links")
+	authUser := flag.String("auth-user", os.Getenv("UVOO_HUGO_EDITOR_AUTH_USER"), "HTTP Basic Auth username")
+	authPassword := flag.String("auth-password", os.Getenv("UVOO_HUGO_EDITOR_AUTH_PASSWORD"), "HTTP Basic Auth password")
+	authPasswordFile := flag.String("auth-password-file", os.Getenv("UVOO_HUGO_EDITOR_AUTH_PASSWORD_FILE"), "file containing HTTP Basic Auth password")
+	startHugo := flag.Bool("start-hugo", envBool("UVOO_HUGO_EDITOR_START_HUGO", true), "start Hugo preview server on launch")
 	flag.Parse()
 
 	if *authPassword == "" && *authPasswordFile != "" {
@@ -111,7 +111,7 @@ func main() {
 		*authPassword = strings.TrimSpace(string(password))
 	}
 	if *authUser == "" || *authPassword == "" {
-		log.Fatal("basic auth is required: set UVOOHUGO_EDITOR_AUTH_USER and UVOOHUGO_EDITOR_AUTH_PASSWORD, or pass -auth-user and -auth-password")
+		log.Fatal("basic auth is required: set UVOO_HUGO_EDITOR_AUTH_USER and UVOO_HUGO_EDITOR_AUTH_PASSWORD, or pass -auth-user and -auth-password")
 	}
 
 	siteDir, err := filepath.Abs(*site)

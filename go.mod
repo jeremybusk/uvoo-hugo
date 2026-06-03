@@ -1,3 +1,3 @@
-module uvoohugo
+module uvoo-hugo
 
 go 1.22

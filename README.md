@@ -1,4 +1,4 @@
-# uvoohugo
+# uvoo-hugo
 
 This repo contains a Hugo demo site and a small authenticated local editor for
 editing the site's Markdown content.
@@ -18,16 +18,16 @@ cd editor/web
 npm install
 npm run build
 cd ../..
-go build -o ./bin/uvoohugo-editor ./editor
+go build -o ./bin/uvoo-hugo-editor ./editor
 ```
 
 Run the editor against the included Hugo demo site:
 
 ```bash
-export UVOOHUGO_EDITOR_AUTH_USER=admin
-export UVOOHUGO_EDITOR_AUTH_PASSWORD="$(openssl rand -base64 32)"
+export UVOO_HUGO_EDITOR_AUTH_USER=admin
+export UVOO_HUGO_EDITOR_AUTH_PASSWORD="$(openssl rand -base64 32)"
 
-./bin/uvoohugo-editor \
+./bin/uvoo-hugo-editor \
   -site ./hugo_website_demo \
   -addr 127.0.0.1:1314 \
   -hugo-addr 127.0.0.1:1313
@@ -39,7 +39,7 @@ Open:
 http://127.0.0.1:1314
 ```
 
-Sign in with the username from `UVOOHUGO_EDITOR_AUTH_USER` and the generated
+Sign in with the username from `UVOO_HUGO_EDITOR_AUTH_USER` and the generated
 password printed in your shell environment. The editor serves the Hugo preview
 through the authenticated `/preview/` route, so the demo site preview is
 available at:
@@ -71,8 +71,8 @@ you accept the bandwidth and browser-format tradeoffs.
 For frontend development, run the Go API and Vite separately:
 
 ```bash
-export UVOOHUGO_EDITOR_AUTH_USER=admin
-export UVOOHUGO_EDITOR_AUTH_PASSWORD=dev-password
+export UVOO_HUGO_EDITOR_AUTH_USER=admin
+export UVOO_HUGO_EDITOR_AUTH_PASSWORD=dev-password
 go run ./editor -site ./hugo_website_demo
 ```
 
