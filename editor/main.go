@@ -27,7 +27,7 @@ import (
 	"unicode"
 )
 
-//go:embed web/dist
+//go:embed web/dist/.keep web/dist/*
 var embeddedWeb embed.FS
 
 type server struct {

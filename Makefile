@@ -20,7 +20,7 @@ test:
 license-check:
 	bash scripts/license-check.sh
 
-ci: test web license-check
+ci: web test license-check
 
 release:
 	bash scripts/release.sh
