@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: Apache-2.0
+
+.git
+.agents
+.codex
+.env
+bin
+dist
+tmp
+trash
+hugo-server.log
+hugo_website_demo
+hugo_website_demo/
+node_modules
+editor/web/node_modules
+editor/web/dist
+editor/web/*.tsbuildinfo
+scancode-report.json
+scancode-source-report.json

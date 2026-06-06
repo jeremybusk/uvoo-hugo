@@ -51,9 +51,7 @@ http://127.0.0.1:1314/preview/
 The editor opens on the `Content` tab by default. Use the `Config` tab to edit
 `hugo.yaml`, including site params, menu items, markup settings, and other Hugo
 configuration. Use `Hide Preview` for a full-width editing area, or `Live Site`
-to open the current preview in another tab. In `Content`, use `Raw Markdown` to
-switch from the rich text editor to direct Markdown editing, then `Rich Text` to
-switch back.
+to open the current preview in another tab.
 
 Use the `Media` tab to upload and manage reusable site media:
 
@@ -93,3 +91,23 @@ http://127.0.0.1:5173
 ## Packaging
 
 Package builds are documented in [docs/PACKAGE.md](docs/PACKAGE.md).
+
+Run the local CI target before publishing changes:
+
+```bash
+make ci
+```
+
+Create a release tag and let GitHub Actions publish the release:
+
+```bash
+VERSION=v0.1.0 make release
+```
+
+Successful CI runs build and push the container image to GHCR as
+`ghcr.io/uvoo/uvoo-hugo`.
+
+## License
+
+Uvoo Hugo Editor is licensed under the Apache License, Version 2.0. See
+[LICENSE](LICENSE) and [NOTICE](NOTICE).

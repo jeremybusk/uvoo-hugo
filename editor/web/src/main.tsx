@@ -1,25 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react'
+// SPDX-License-Identifier: Apache-2.0
+
+import React, { useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import {
-  BlockTypeSelect,
-  BoldItalicUnderlineToggles,
-  CreateLink,
-  headingsPlugin,
-  InsertTable,
-  InsertThematicBreak,
-  linkDialogPlugin,
-  linkPlugin,
-  listsPlugin,
-  ListsToggle,
-  markdownShortcutPlugin,
-  MDXEditor,
-  quotePlugin,
-  tablePlugin,
-  thematicBreakPlugin,
-  toolbarPlugin,
-  UndoRedo
-} from '@mdxeditor/editor'
-import '@mdxeditor/editor/style.css'
 import './styles.css'
 
 type PageSummary = {
@@ -159,35 +141,7 @@ function App() {
   const [previewTick, setPreviewTick] = useState(0)
   const [showPreview, setShowPreview] = useState(true)
   const [showFrontMatter, setShowFrontMatter] = useState(true)
-  const [contentMode, setContentMode] = useState<'rich' | 'markdown'>('rich')
   const [query, setQuery] = useState('')
-
-  const plugins = useMemo(
-    () => [
-      headingsPlugin(),
-      listsPlugin(),
-      quotePlugin(),
-      thematicBreakPlugin(),
-      linkPlugin(),
-      linkDialogPlugin(),
-      tablePlugin(),
-      markdownShortcutPlugin(),
-      toolbarPlugin({
-        toolbarContents: () => (
-          <>
-            <UndoRedo />
-            <BlockTypeSelect />
-            <BoldItalicUnderlineToggles />
-            <ListsToggle />
-            <CreateLink />
-            <InsertTable />
-            <InsertThematicBreak />
-          </>
-        )
-      })
-    ],
-    []
-  )
 
   useEffect(() => {
     Promise.all([api.getConfig(), api.listPages()])
@@ -497,14 +451,9 @@ function App() {
           </div>
           <div className="topbar-actions">
             {activeTab === 'content' && (
-              <>
-                <button type="button" onClick={() => setContentMode((value) => value === 'rich' ? 'markdown' : 'rich')}>
-                  {contentMode === 'rich' ? 'Raw Markdown' : 'Rich Text'}
-                </button>
-                <button type="button" onClick={() => setShowFrontMatter((value) => !value)}>
-                  {showFrontMatter ? 'Hide Fields' : 'Show Fields'}
-                </button>
-              </>
+              <button type="button" onClick={() => setShowFrontMatter((value) => !value)}>
+                {showFrontMatter ? 'Hide Fields' : 'Show Fields'}
+              </button>
             )}
             <button type="button" onClick={() => setShowPreview((value) => !value)}>
               {showPreview ? 'Hide Preview' : 'Show Preview'}
@@ -538,26 +487,14 @@ function App() {
                       />
                     </label>
                   )}
-                  {contentMode === 'rich' ? (
-                    <div className="markdown-editor">
-                      <MDXEditor
-                        key={`${page.path}:rich`}
-                        markdown={body}
-                        onChange={setBody}
-                        plugins={plugins}
-                        contentEditableClassName="mdx-content"
-                      />
-                    </div>
-                  ) : (
-                    <label className="raw-markdown-editor">
-                      <span>Markdown body</span>
-                      <textarea
-                        spellCheck={false}
-                        value={body}
-                        onChange={(event) => setBody(event.target.value)}
-                      />
-                    </label>
-                  )}
+                  <label className="raw-markdown-editor">
+                    <span>Markdown body</span>
+                    <textarea
+                      spellCheck={false}
+                      value={body}
+                      onChange={(event) => setBody(event.target.value)}
+                    />
+                  </label>
                 </>
               ) : (
                 <div className="empty-state">Choose a Markdown file to start editing.</div>
