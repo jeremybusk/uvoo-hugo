@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 package main
 
 import (
@@ -25,7 +27,7 @@ import (
 	"unicode"
 )
 
-//go:embed web/dist
+//go:embed web/dist/.keep web/dist/*
 var embeddedWeb embed.FS
 
 type server struct {

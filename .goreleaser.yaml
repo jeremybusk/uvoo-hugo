@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 version: 2
 
 project_name: uvoo-hugo-editor
@@ -24,6 +26,8 @@ archives:
     formats:
       - tar.gz
     files:
+      - LICENSE
+      - NOTICE
       - README.md
       - editor/README.md
       - docs/PACKAGE.md
@@ -36,7 +40,7 @@ nfpms:
     homepage: https://github.com/uvoo/uvoo-hugo
     maintainer: uvoo-hugo maintainers
     description: Local authenticated editor for Hugo content files.
-    license: MIT
+    license: Apache-2.0
     formats:
       - deb
       - rpm
@@ -46,6 +50,10 @@ nfpms:
         dst: /usr/lib/systemd/user/uvoo-hugo-editor.service
       - src: packaging/editor.env.example
         dst: /usr/share/doc/uvoo-hugo-editor/editor.env.example
+      - src: LICENSE
+        dst: /usr/share/doc/uvoo-hugo-editor/LICENSE
+      - src: NOTICE
+        dst: /usr/share/doc/uvoo-hugo-editor/NOTICE
       - src: docs/PACKAGE.md
         dst: /usr/share/doc/uvoo-hugo-editor/PACKAGE.md
 

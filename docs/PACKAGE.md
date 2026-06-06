@@ -41,6 +41,20 @@ goreleaser release --snapshot --clean
 
 Packages are written to `dist/`.
 
+## Release
+
+CI runs Go tests, the frontend build, source license metadata checks, and Go/npm
+dependency license scans. To create a release, commit the release-ready tree and
+run:
+
+```bash
+VERSION=v0.1.0 make release
+```
+
+The release script runs `make ci`, creates and pushes the annotated tag, and the
+GitHub release workflow builds the GoReleaser artifacts. Successful CI runs also
+build and push the Docker image to `ghcr.io/uvoo/uvoo-hugo`.
+
 ## Install
 
 Install the package for your distro:

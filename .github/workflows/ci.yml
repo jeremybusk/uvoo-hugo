@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: Apache-2.0
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: editor/web/package-lock.json
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y jq
+      - name: Install license scanners
+        run: go install github.com/google/go-licenses@latest
+      - name: Test, build, and license check
+        run: make ci
+        env:
+          REQUIRE_LICENSE_TOOLS: '1'

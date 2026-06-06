@@ -9,4 +9,8 @@ editor/web/dist/*
 editor/web/tsconfig.tsbuildinfo
 hugo-server.log
 dist/
+!editor/web/dist/
+!editor/web/dist/.keep
 bin/
+scancode-report.json
+scancode-source-report.json
